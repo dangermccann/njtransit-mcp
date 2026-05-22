@@ -1,0 +1,31 @@
+[project]
+name = "njtransit-mcp"
+version = "0.1.0"
+description = "MCP server exposing NJ Transit rail departure and train status data."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.7.0",
+    "uvicorn>=0.30.0",
+    "starlette>=0.37.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.scripts]
+njtransit-mcp = "njtransit_mcp.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/njtransit_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+]
