@@ -21,6 +21,16 @@ IMAGE="gcr.io/${PROJECT_ID}/${SERVICE}:latest"
 
 gcloud builds submit --tag "${IMAGE}" --project "${PROJECT_ID}"
 
+# Grant the default Compute service account access to both secrets.
+PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')
+SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+for secret in njtransit-username njtransit-password; do
+  gcloud secrets add-iam-policy-binding "${secret}" \
+    --member="serviceAccount:${SA}" \
+    --role="roles/secretmanager.secretAccessor" \
+    --project="${PROJECT_ID}"
+done
+
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \

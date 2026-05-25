@@ -21,6 +21,16 @@ $Image   = "gcr.io/$($env:PROJECT_ID)/$Service`:latest"
 
 gcloud builds submit --tag $Image --project $env:PROJECT_ID
 
+# Grant the default Compute service account access to both secrets.
+$ProjectNumber = gcloud projects describe $env:PROJECT_ID --format="value(projectNumber)"
+$SA = "$ProjectNumber-compute@developer.gserviceaccount.com"
+foreach ($secret in @("njtransit-username", "njtransit-password")) {
+    gcloud secrets add-iam-policy-binding $secret `
+      --member="serviceAccount:$SA" `
+      --role="roles/secretmanager.secretAccessor" `
+      --project=$env:PROJECT_ID
+}
+
 gcloud run deploy $Service `
   --image $Image `
   --region $Region `
