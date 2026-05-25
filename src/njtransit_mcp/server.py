@@ -9,6 +9,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .njt_client import NJTClient
 
@@ -42,6 +43,9 @@ mcp = FastMCP(
         "Call list_stations to discover codes."
     ),
     lifespan=lifespan,
+    # Disable localhost-only DNS rebinding protection so the server accepts
+    # requests from any host (required for Cloud Run and other hosted deployments).
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
 
