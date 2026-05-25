@@ -13,6 +13,7 @@ commuter-rail departure and train-status data as tools Claude can call.
 
 ## Local dev
 
+**macOS / Linux:**
 ```bash
 # Python 3.11+
 python -m venv .venv && source .venv/bin/activate
@@ -22,9 +23,19 @@ cp .env.example .env   # then fill in NJTRANSIT_USERNAME / _PASSWORD
 njtransit-mcp          # serves Streamable HTTP on :8080 at /mcp
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Python 3.11+
+python -m venv .venv; .venv\Scripts\Activate.ps1
+pip install -e .
+
+Copy-Item .env.example .env   # then fill in NJTRANSIT_USERNAME / _PASSWORD
+njtransit-mcp                 # serves Streamable HTTP on :8080 at /mcp
+```
+
 Hit it with the MCP Inspector:
 
-```bash
+```powershell
 npx @modelcontextprotocol/inspector
 # Connect to http://localhost:8080/mcp (Streamable HTTP)
 ```
@@ -33,6 +44,7 @@ npx @modelcontextprotocol/inspector
 
 Credentials live in Secret Manager; the service reads them as env vars.
 
+**macOS / Linux:**
 ```bash
 export PROJECT_ID=your-gcp-project
 export REGION=us-east4   # optional
@@ -42,6 +54,18 @@ printf %s "$NJTRANSIT_USERNAME" | gcloud secrets create njtransit-username --dat
 printf %s "$NJTRANSIT_PASSWORD" | gcloud secrets create njtransit-password --data-file=-
 
 ./deploy.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:PROJECT_ID = "your-gcp-project"
+$env:REGION     = "us-east4"   # optional
+
+# One-time: store creds
+$env:NJTRANSIT_USERNAME | gcloud secrets create njtransit-username --data-file=-
+$env:NJTRANSIT_PASSWORD | gcloud secrets create njtransit-password --data-file=-
+
+.\deploy.ps1
 ```
 
 The deploy script prints the service URL. The MCP endpoint is `<url>/mcp`.
