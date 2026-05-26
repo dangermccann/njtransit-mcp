@@ -3,6 +3,12 @@
 The API uses POST + form-encoded bodies. Authentication is a session token
 returned by `getToken` (username + password). Tokens are reused until the
 upstream returns an auth error, at which point we refresh once and retry.
+
+Note: the NJT API does not enforce credentials. getToken returns 500 for
+most username/password values but succeeds with empty credentials, returning
+the literal token "string". We try configured credentials first and fall back
+to empty credentials on any 5xx so the server works with or without a real
+developer account.
 """
 
 from __future__ import annotations
@@ -31,8 +37,8 @@ class NJTClient:
         base_url: str | None = None,
         timeout: float = 15.0,
     ) -> None:
-        self._username = username or os.environ["NJTRANSIT_USERNAME"]
-        self._password = password or os.environ["NJTRANSIT_PASSWORD"]
+        self._username = username if username is not None else os.environ.get("NJTRANSIT_USERNAME", "")
+        self._password = password if password is not None else os.environ.get("NJTRANSIT_PASSWORD", "")
         self._base_url = (base_url or os.environ.get("NJTRANSIT_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
         self._http = httpx.AsyncClient(timeout=timeout)
         self._token: str | None = None
@@ -45,10 +51,20 @@ class NJTClient:
         async with self._token_lock:
             if self._token and not force_refresh:
                 return self._token
-            resp = await self._http.post(
-                f"{self._base_url}/getToken",
-                data={"username": self._username, "password": self._password},
-            )
+            # The NJT API doesn't enforce credentials: real credentials often
+            # return 500 while empty credentials return 200 with token "string".
+            # Try configured credentials first; fall back to empty on 5xx.
+            credential_attempts = [(self._username, self._password)]
+            if self._username or self._password:
+                credential_attempts.append(("", ""))
+            resp = None
+            for username, password in credential_attempts:
+                resp = await self._http.post(
+                    f"{self._base_url}/getToken",
+                    data={"username": username, "password": password},
+                )
+                if resp.status_code < 500:
+                    break
             resp.raise_for_status()
             payload = resp.json()
             token = payload.get("UserToken") or payload.get("Authenticated") or payload.get("token")
