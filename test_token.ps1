@@ -37,7 +37,7 @@ function Test-Token {
         # If we got a token, try one real data call to confirm it works
         try {
             $parsed = $body | ConvertFrom-Json
-            $token = $parsed.UserToken ?? $parsed.Authenticated ?? $parsed.token
+            $token = if ($parsed.UserToken) { $parsed.UserToken } elseif ($parsed.Authenticated) { $parsed.Authenticated } else { $parsed.token }
             if ($token -and $token -ne "0") {
                 Write-Host "  Token: $token" -ForegroundColor Cyan
                 $dataResp = Invoke-WebRequest `
