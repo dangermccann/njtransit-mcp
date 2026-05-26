@@ -4,11 +4,11 @@ The API uses POST + form-encoded bodies. Authentication is a session token
 returned by `getToken` (username + password). Tokens are reused until the
 upstream returns an auth error, at which point we refresh once and retry.
 
-Note: the NJT API does not enforce credentials. getToken returns 500 for
-most username/password values but succeeds with empty credentials, returning
-the literal token "string". We try configured credentials first and fall back
-to empty credentials on any 5xx so the server works with or without a real
-developer account.
+Note: the NJT API now requires valid developer portal credentials. Empty or
+missing credentials return HTTP 204 with no body (no token). Invalid
+credentials return HTTP 500. Valid credentials return HTTP 200 with a JSON
+body containing the session token under the key "UserToken", "Authenticated",
+or "token".
 """
 
 from __future__ import annotations
@@ -51,21 +51,16 @@ class NJTClient:
         async with self._token_lock:
             if self._token and not force_refresh:
                 return self._token
-            # The NJT API doesn't enforce credentials: real credentials often
-            # return 500 while empty credentials return 200 with token "string".
-            # Try configured credentials first; fall back to empty on 5xx.
-            credential_attempts = [(self._username, self._password)]
-            if self._username or self._password:
-                credential_attempts.append(("", ""))
-            resp = None
-            for username, password in credential_attempts:
-                resp = await self._http.post(
-                    f"{self._base_url}/getToken",
-                    data={"username": username, "password": password},
-                )
-                if resp.status_code < 500:
-                    break
+            resp = await self._http.post(
+                f"{self._base_url}/getToken",
+                data={"username": self._username, "password": self._password},
+            )
             resp.raise_for_status()
+            if not resp.content:
+                raise NJTAuthError(
+                    "NJ Transit getToken returned an empty response — "
+                    "valid developer credentials are required (set NJTRANSIT_USERNAME / NJTRANSIT_PASSWORD)"
+                )
             payload = resp.json()
             token = payload.get("UserToken") or payload.get("Authenticated") or payload.get("token")
             if not token or token == "0":
