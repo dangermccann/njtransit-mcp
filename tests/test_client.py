@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from njtransit_mcp.njt_client import NJTClient
+from njtransit_mcp.njt_client import NJTAuthError, NJTClient
 
 BASE = "https://raildata.njtransit.com/api/TrainData"
 
@@ -57,6 +57,18 @@ async def test_refresh_on_401(client):
     result = await client.upcoming_departures("NY")
     assert result == [{"TRAIN_ID": "3925"}]
     assert calls["n"] == 2  # one 401, one retry
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_empty_token_response_raises_auth_error():
+    """HTTP 204 (empty body) from getToken must raise NJTAuthError, not JSONDecodeError."""
+    client = NJTClient(username="u", password="p", base_url=BASE)
+    respx.post(f"{BASE}/getToken").mock(return_value=httpx.Response(204))
+
+    with pytest.raises(NJTAuthError, match="empty response"):
+        await client.station_list()
     await client.aclose()
 
 
